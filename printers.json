@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Alice Chen",
+    "slackId": "U00000001",
+    "printerModel": "Prusa MK4",
+    "city": "New York, USA",
+    "website": "example.com/alice",
+    "printSize": [250, 210, 210],
+    "filaments": {"PLA": ["Orange", "White"], "PETG": "Black"},
+    "lat": 40.7128,
+    "lng": -74.0060,
+    "timesPrinted": 58
+  },
+  {
+    "name": "Bob Singh",
+    "slackId": "U00000002",
+    "printerModel": "BambuLab X1C",
+    "city": "London, UK",
+    "website": "example.com/bob",
+    "printSize": [256, 256, 256],
+    "filaments": {"PLA": ["Black", "Red"], "ABS": "White"},
+    "lat": 51.5074,
+    "lng": -0.1278,
+    "timesPrinted": 91
+  },
+  {
+    "name": "Cara Patel",
+    "slackId": "U00000003",
+    "printerModel": "Ender-3 V3 KE",
+    "city": "Tokyo, Japan",
+    "website": "example.com/cara",
+    "printSize": [220, 220, 250],
+    "filaments": {"PLA": ["Blue"], "TPU": ["White"]},
+    "lat": 35.6895,
+    "lng": 139.6917,
+    "timesPrinted": 34
+  },
+  {
+    "name": "Dev Sharma",
+    "slackId": "U00000004",
+    "printerModel": "Voron 2.4",
+    "city": "Sydney, Australia",
+    "website": "example.com/dev",
+    "printSize": [300, 300, 300],
+    "filaments": {"ABS": ["Gray", "Black"], "PETG": ["Orange"]},
+    "lat": -33.8688,
+    "lng": 151.2093,
+    "timesPrinted": 120
+  },
+  {
+    "name": "Eva Rao",
+    "slackId": "U00000005",
+    "printerModel": "Anycubic Kobra",
+    "city": "Cape Town, South Africa",
+    "website": "example.com/eva",
+    "printSize": [220, 220, 250],
+    "filaments": {"PLA": ["Green"], "PETG": "Black"},
+    "lat": -33.9249,
+    "lng": 18.4241,
+    "timesPrinted": 12
+  },
+  {
+    "name": "Faisal Khan",
+    "slackId": "U00000006",
+    "printerModel": "Prusa MINI+",
+    "city": "São Paulo, Brazil",
+    "website": "example.com/faisal",
+    "printSize": [180, 180, 180],
+    "filaments": {"PLA": ["Yellow"], "PETG": ["White"]},
+    "lat": -23.5505,
+    "lng": -46.6333,
+    "timesPrinted": 77
+  },
+  {
+    "name": "Grace Mehta",
+    "slackId": "U00000007",
+    "printerModel": "BambuLab P1P",
+    "city": "Berlin, Germany",
+    "website": "example.com/grace",
+    "printSize": [256, 256, 256],
+    "filaments": {"PLA": ["Purple", "Black"], "ABS": "White"},
+    "lat": 52.5200,
+    "lng": 13.4050,
+    "timesPrinted": 65
+  },
+  {
+    "name": "Hassan Ali",
+    "slackId": "U00000008",
+    "printerModel": "Creality CR-10",
+    "city": "Singapore, Singapore",
+    "website": "example.com/hassan",
+    "printSize": [300, 300, 400],
+    "filaments": {"PLA": ["Orange"], "PETG": ["Blue", "Black"]},
+    "lat": 1.3521,
+    "lng": 103.8198,
+    "timesPrinted": 200
+  },
+  {
+    "name": "Isha Gupta",
+    "slackId": "U00000009",
+    "printerModel": "Anycubic Vyper",
+    "city": "Toronto, Canada",
+    "website": "example.com/isha",
+    "printSize": [245, 245, 260],
+    "filaments": {"PLA": ["White", "Black"], "TPU": ["Clear"]},
+    "lat": 43.6532,
+    "lng": -79.3832,
+    "timesPrinted": 23
+  },
+  {
+    "name": "Jai Verma",
+    "slackId": "U00000010",
+    "printerModel": "FlashForge Adventurer 4",
+    "city": "Dubai, UAE",
+    "website": "example.com/jai",
+    "printSize": [220, 200, 250],
+    "filaments": {"PLA": ["Red"], "ABS": ["Black"]},
+    "lat": 25.2048,
+    "lng": 55.2708,
+    "timesPrinted": 44
+  }
+]

@@ -30,6 +30,39 @@ function ensureHoverLabel(){
 let hoveringLabel = false;
 // Store user position when available
 let userPosition = null;
+// Printer data & markers
+let printerData = [];
+let printerMarkers = [];
+// Nearest highlight layer reference
+let nearestHighlightLayer = null;
+// Marker whose label is pinned (won't auto-hide on mouseout)
+let pinnedMarker = null;
+
+function hideLabel(force=false){
+    if (!hoverLabel) return;
+    if (force || !hoveringLabel) hoverLabel.style.display = 'none';
+}
+
+function highlightMarker(marker){
+    if (!marker) return;
+    // Remove previous highlight circle
+    if (nearestHighlightLayer) {
+        try { map.removeLayer(nearestHighlightLayer); } catch(e) {}
+        nearestHighlightLayer = null;
+    }
+
+    // Bring marker forward visually
+    if (marker.setZIndexOffset) marker.setZIndexOffset(1000);
+    // Pin and show label
+    pinnedMarker = marker;
+    drawLabel(marker.metadata, { latlng: marker.getLatLng() });
+    // Zoom and center smoothly on the marker
+    try {
+        map.flyTo(marker.getLatLng(), 9, { duration: 1.1, easeLinearity: 0.25 });
+    } catch (e) {
+        map.setView(marker.getLatLng(), 9);
+    }
+}
 
 function renderFilaments(filaments){
     if (!filaments) return '<div class="pinCard-meta">No filament data</div>';
@@ -159,15 +192,17 @@ function drawMarker(lat, lng, metadata){
     const marker = L.marker([lat, lng], { icon: benchyIcon }).addTo(map);
     // Attach metadata directly to marker instance
     marker.metadata = metadata;
+    printerMarkers.push(marker);
     // Use normal function to preserve 'this' = marker in handler
     marker.on('mouseover', function(e){
         drawLabel(this.metadata, e);
     });
     marker.on('mouseout', function(){
         ensureHoverLabel();
+        if (this === pinnedMarker) return; // do not hide pinned label
         if (hideTimer) { clearTimeout(hideTimer); }
         hideTimer = setTimeout(() => {
-            if (!hoveringLabel) hoverLabel.style.display = 'none';
+            if (!hoveringLabel) hideLabel();
         }, 100);
     });
     return marker;
@@ -177,20 +212,19 @@ function drawMarker(lat, lng, metadata){
 
 
 
-drawMarker(51, 0, {
-    name: 'Nathan Yin',
-    slackId: 'D08HYM1KGRG', // The Slack ID of the printer
-    printerModel: 'BambuLab X1C',
-    city: 'Cambridge',
-    website: 'google.com',
-    printSize: [255, 255, 255], // X,Y,Z max size in mm
-    filaments: {
-        'PLA': ['Orange', 'White', 'Black'],
-        'ABS': 'Orange',
-        'PETG': ['Red']
-    },
-    timesPrinted: 1
-});
+// Load external printer test data
+function loadPrinters(){
+    return fetch('printers.json')
+        .then(r => r.json())
+        .then(data => {
+            printerData = data;
+            data.forEach(p => {
+                drawMarker(p.lat, p.lng, p);
+            });
+        })
+        .catch(err => console.error('Failed to load printers.json', err));
+}
+loadPrinters();
 
 
 // Draws the location of the current user
@@ -218,6 +252,21 @@ function calcDistance(userLat, userLng, printerLat, printerLng) {
   return (R * c)/1000; // km
 }
 
+function findNearestPrinter(userLat, userLng){
+    if (!printerData.length) return null;
+    let best = null;
+    let bestDist = Infinity;
+    for (const p of printerData) {
+        if (typeof p.lat !== 'number' || typeof p.lng !== 'number') continue;
+        const d = calcDistance(userLat, userLng, p.lat, p.lng); // km
+        if (d < bestDist) {
+            bestDist = d;
+            best = { printer: p, distanceKm: d };
+        }
+    }
+    return best;
+}
+
 // Get user location
 const x = document.getElementsByClassName("locationWarning")[0];
 function getLocation() {
@@ -234,8 +283,36 @@ function success(position) {
     let lng = position.coords.longitude
     userPosition = { lat, lng };
     drawUser(lat, lng)
+    const nearest = findNearestPrinter(lat, lng);
+    if (nearest) {
+        x.innerHTML = `✅ Nearest printer: ${nearest.printer.name} (${nearest.printer.printerModel}) – ${nearest.distanceKm.toFixed(1)} km away`;
+        // Find its marker and highlight
+        const marker = printerMarkers.find(m => m.metadata === nearest.printer);
+        highlightMarker(marker);
+    } else {
+        x.innerHTML = "No printers loaded yet.";
+    }
 
 }
+
+// Keep pinned label aligned after zoom/pan animations
+map.on('moveend', () => {
+    if (pinnedMarker) {
+        drawLabel(pinnedMarker.metadata, { latlng: pinnedMarker.getLatLng() });
+    }
+});
+
+// Clicking elsewhere on map unpins and hides label
+map.on('click', (e) => {
+    if (pinnedMarker) {
+        const pm = pinnedMarker.getLatLng();
+        const diff = Math.abs(pm.lat - e.latlng.lat) + Math.abs(pm.lng - e.latlng.lng);
+        if (diff > 0.0005) { // clicked somewhere not exactly on the pinned marker
+            pinnedMarker = null;
+            hideLabel(true);
+        }
+    }
+});
 
 function error() {
     x.innerHTML = "⛔️ Location services are blocked"
