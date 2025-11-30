@@ -17,14 +17,81 @@
 <body>
 
     <h2 style="text-align: center;" class="title pltitle">Printing Legion Map</h2>
-    <h3 style="text-align: center;" class="heading plsubtitle">Each benchy is someone with a printer!</h3>
+    <h3 style="text-align: center;" class="heading plsubtitle">Each benchy is someone with a printer!
+    </h3>
+
+    <!-- Filter Panel -->
+    <div class="filterPanel">
+        <div class="filterHeader">
+            <span class="filterTitle">🔍 Filter Printers</span>
+            <button class="btn filterClearBtn" onclick="clearFilters()">Clear All</button>
+        </div>
+        <div class="filterContent">
+            <div class="filterSection">
+                <label class="filterLabel">Materials:</label>
+                <div class="filterChips" id="materialFilters">
+                    <button class="filterChip" data-filter="PLA" onclick="toggleMaterialFilter('PLA')">PLA</button>
+                    <button class="filterChip" data-filter="ABS" onclick="toggleMaterialFilter('ABS')">ABS</button>
+                    <button class="filterChip" data-filter="PETG" onclick="toggleMaterialFilter('PETG')">PETG</button>
+                    <button class="filterChip" data-filter="TPU" onclick="toggleMaterialFilter('TPU')">TPU</button>
+                    <button class="filterChip" data-filter="OTHER"
+                        onclick="toggleMaterialFilter('OTHER')">Other</button>
+                </div>
+                <div id="otherMaterialSpec" class="otherSpec" style="display:none;">
+                    <label class="otherSpecLabel">Specify other materials (comma separated):</label>
+                    <input type="text" id="otherMaterialInput" class="otherInput" placeholder="e.g. Nylon, ASA"
+                        oninput="applyFilters();" />
+                </div>
+            </div>
+            <div class="filterSection">
+                <label class="filterLabel">Min Largest Side (mm):</label>
+                <select class="filterSelect" id="largestSideFilter" onchange="applyFilters()">
+                    <option value="0">Any size</option>
+                    <option value="180">≥180 mm</option>
+                    <option value="220">≥220 mm</option>
+                    <option value="250">≥250 mm</option>
+                    <option value="300">≥300 mm</option>
+                    <option value="350">≥350 mm</option>
+                </select>
+            </div>
+            <div class="filterSection">
+                <label class="filterLabel">Filament Colors:</label>
+                <div class="colorFilterRow">
+                    <select class="filterSelect" id="colorFilter" onchange="applyFilters();updateColorPreview();">
+                        <option value="">Any color</option>
+                        <option value="Black">Black</option>
+                        <option value="White">White</option>
+                        <option value="Red">Red</option>
+                        <option value="Orange">Orange</option>
+                        <option value="Blue">Blue</option>
+                        <option value="Green">Green</option>
+                        <option value="Yellow">Yellow</option>
+                        <option value="Purple">Purple</option>
+                        <option value="Gray">Gray</option>
+                        <option value="Clear">Clear</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <span id="colorPreview" class="colorPreview" title="Selected color"></span>
+                </div>
+                <div id="otherColorSpec" class="otherSpec" style="display:none;">
+                    <label class="otherSpecLabel">Specify other colors (comma separated):</label>
+                    <input type="text" id="otherColorInput" class="otherInput" placeholder="e.g. Teal, Magenta"
+                        oninput="applyFilters();updateColorPreview();" />
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="mapRow">
         <div id="map"></div>
     </div>
     <!-- <input placeholder="Input Your Location To Find Nearest Printer" class="locationInput" /> -->
     <button class="cta nearestPrinterBtn" onclick="getLocation()">Find Nearest Printer</button>
     <p class="caption locationWarning">🧭 This will require location services!</p>
-    <p>build 1a</p>
+    <div id="noResultsPopup" class="noResultsPopup" role="alert" aria-live="assertive"></div>
+
+    <!-- <p>build 1a</p> -->
     <script src="script.js"></script>
+    <!-- <footer class="buildFooter" id="buildFooter">Build 1a</footer> -->
 
 </html>

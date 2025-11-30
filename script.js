@@ -1,7 +1,7 @@
 
-
+console.log("Build 2A BETA TEST DEMO")
 // Initialize map
-const map = L.map("map").setView([51, 0], 2);
+const map = L.map("map").setView([31, 0], 2);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap contributors",
 }).addTo(map);
@@ -37,6 +37,277 @@ let printerMarkers = [];
 let nearestHighlightLayer = null;
 // Marker whose label is pinned (won't auto-hide on mouseout)
 let pinnedMarker = null;
+
+// Active filters
+let activeFilters = {
+    materials: [], // selected materials (must all be present unless OTHER specified)
+    color: '',     // single selected color
+    minLargestSide: 0, // minimum largest dimension in mm
+    otherMaterialTerms: [], // parsed custom other material terms
+    otherColorTerms: [] // parsed custom other color terms
+};
+
+// Threshold beyond which we consider the nearest printer "far" for user messaging
+const FAR_DISTANCE_KM = 600; // adjust as needed
+
+function showNoResultsPopup(message){
+    let el = document.getElementById('noResultsPopup');
+    if (!el) return;
+    el.innerHTML = `<strong>No Matches</strong><br>${message}<br><button class="closePopupBtn" type="button" onclick="hideNoResultsPopup()">Dismiss</button>`;
+    el.style.display = 'block';
+}
+function hideNoResultsPopup(){
+    const el = document.getElementById('noResultsPopup');
+    if (el) el.style.display = 'none';
+}
+
+function filtersAreActive(){
+    return (activeFilters.materials.length > 0 ||
+            !!activeFilters.color ||
+            activeFilters.minLargestSide > 0 ||
+            activeFilters.otherMaterialTerms.length > 0 ||
+            activeFilters.otherColorTerms.length > 0);
+}
+
+function printerMatchesActiveFilters(printer){
+    const knownMaterials = ['PLA','ABS','PETG','TPU'];
+    const requiredMaterials = activeFilters.materials.filter(m => m !== 'OTHER');
+    const hasOtherMaterialFilter = activeFilters.materials.includes('OTHER');
+    const printerMaterials = getPrinterMaterials(printer.filaments);
+    const printerColors = getPrinterColors(printer.filaments);
+    const filamentPairs = getFilamentPairs(printer.filaments); // [{material,color}]
+
+    if (requiredMaterials.length > 0) {
+        if (!requiredMaterials.every(m => printerMaterials.includes(m))) return false;
+    }
+    if (hasOtherMaterialFilter) {
+        if (activeFilters.otherMaterialTerms.length > 0) {
+            const lower = printerMaterials.map(m=>m.toLowerCase());
+            const matchesTerm = activeFilters.otherMaterialTerms.some(term => lower.includes(term.toLowerCase()));
+            if (!matchesTerm) return false;
+        } else {
+            if (!printerMaterials.some(m => !knownMaterials.includes(m))) return false;
+        }
+    }
+    if (activeFilters.color) {
+        const knownColors = ['Black','White','Red','Orange','Blue','Green','Yellow','Purple','Gray','Clear'];
+        const hasSpecificMaterials = requiredMaterials.length > 0;
+        if (activeFilters.color === 'Other') {
+            if (activeFilters.otherColorTerms.length > 0) {
+                // Must match one of otherColorTerms; if material filter active restrict to those materials
+                const termsLower = activeFilters.otherColorTerms.map(t=>t.toLowerCase());
+                const anyMatch = filamentPairs.some(fp => (!hasSpecificMaterials || requiredMaterials.includes(fp.material)) && fp.color && termsLower.includes(fp.color.toLowerCase()));
+                if (!anyMatch) return false;
+            } else {
+                // Any non-known color; restrict to material intersection if materials selected
+                const anyOther = filamentPairs.some(fp => (!hasSpecificMaterials || requiredMaterials.includes(fp.material)) && fp.color && !knownColors.includes(fp.color));
+                if (!anyOther) return false;
+            }
+        } else {
+            if (hasSpecificMaterials) {
+                // Require at least one filament pair where both material and color match
+                const hasPair = filamentPairs.some(fp => requiredMaterials.includes(fp.material) && fp.color === activeFilters.color);
+                if (!hasPair) return false;
+            } else {
+                // No material intersection required, fall back to color presence anywhere
+                if (!printerColors.includes(activeFilters.color)) return false;
+            }
+        }
+    }
+    if (activeFilters.minLargestSide > 0 && Array.isArray(printer.printSize)) {
+        const largest = Math.max(...printer.printSize);
+        if (largest < activeFilters.minLargestSide) return false;
+    }
+    return true;
+}
+
+function toggleMaterialFilter(material) {
+    const idx = activeFilters.materials.indexOf(material);
+    if (idx > -1) {
+        activeFilters.materials.splice(idx, 1);
+    } else {
+        activeFilters.materials.push(material);
+    }
+    // Update UI
+    const btn = document.querySelector(`[data-filter="${material}"]`);
+    if (btn) btn.classList.toggle('active');
+    updateOtherInputs();
+    applyFilters();
+}
+
+function clearFilters() {
+    activeFilters.materials = [];
+    activeFilters.color = '';
+    activeFilters.minLargestSide = 0;
+    activeFilters.otherMaterialTerms = [];
+    activeFilters.otherColorTerms = [];
+    document.querySelectorAll('#materialFilters .filterChip').forEach(c => c.classList.remove('active'));
+    const sideEl = document.getElementById('largestSideFilter');
+    if (sideEl) sideEl.value = '0';
+    const colorSel = document.getElementById('colorFilter');
+    if (colorSel) colorSel.value = '';
+    const om = document.getElementById('otherMaterialInput');
+    const oc = document.getElementById('otherColorInput');
+    if (om) om.value='';
+    if (oc) oc.value='';
+    updateOtherInputs();
+    updateColorPreview();
+    applyFilters();
+}
+
+function applyFilters() {
+    // Update largest side filter
+    const sideSelect = document.getElementById('largestSideFilter');
+    if (sideSelect) activeFilters.minLargestSide = parseInt(sideSelect.value) || 0;
+    const colorSelect = document.getElementById('colorFilter');
+    if (colorSelect) activeFilters.color = colorSelect.value || '';
+
+    const knownMaterials = ['PLA','ABS','PETG','TPU'];
+    const hasOtherMaterialFilter = activeFilters.materials.includes('OTHER');
+    const requiredMaterials = activeFilters.materials.filter(m => m !== 'OTHER');
+
+    // Parse custom other specs
+    const om = document.getElementById('otherMaterialInput');
+    const oc = document.getElementById('otherColorInput');
+    activeFilters.otherMaterialTerms = (om && om.value.trim()) ? om.value.split(/[,]/).map(s=>s.trim()).filter(Boolean) : [];
+    activeFilters.otherColorTerms = (oc && oc.value.trim()) ? oc.value.split(/[,]/).map(s=>s.trim()).filter(Boolean) : [];
+
+    printerMarkers.forEach(marker => {
+        const show = printerMatchesActiveFilters(marker.metadata);
+        if (show) {
+            if (!map.hasLayer(marker)) marker.addTo(map);
+        } else if (map.hasLayer(marker)) {
+            map.removeLayer(marker);
+            if (pinnedMarker === marker) {
+                pinnedMarker = null;
+                hideLabel(true);
+            }
+        }
+    });
+    if (userPosition) {
+        const nearest = findNearestPrinter(userPosition.lat, userPosition.lng);
+        if (nearest) {
+            const marker = printerMarkers.find(m => m.metadata === nearest.printer);
+            if (marker) highlightMarker(marker);
+            if (typeof x !== 'undefined' && x) {
+                if (filtersAreActive() && nearest.distanceKm > FAR_DISTANCE_KM) {
+                    x.innerHTML = `⚠️ Nearest matching printer is far (${nearest.distanceKm.toFixed(1)} km: ${nearest.printer.name}). Consider reducing filters to increase yield.`;
+                } else {
+                    x.innerHTML = `✅ Nearest printer: ${nearest.printer.name} (${nearest.printer.printerModel}) – ${nearest.distanceKm.toFixed(1)} km away`;
+                }
+            }
+            hideNoResultsPopup();
+        } else if (typeof x !== 'undefined' && x) {
+            if (filtersAreActive()) {
+                x.innerHTML = '❌ No matching printers found.';
+                showNoResultsPopup('No printers match your current filters. Try reducing filters to increase results.');
+            } else {
+                x.innerHTML = 'No printers loaded yet.';
+                hideNoResultsPopup();
+            }
+        }
+    }
+}
+
+function getPrinterMaterials(filaments) {
+    if (!filaments) return [];
+    if (typeof filaments === 'object' && !Array.isArray(filaments)) {
+        return Object.keys(filaments);
+    }
+    if (Array.isArray(filaments)) {
+        return filaments.map(f => {
+            if (typeof f === 'string') return f.split(/[:|-]/)[0];
+            return f.material;
+        }).filter(Boolean);
+    }
+    return [];
+}
+
+function getPrinterColors(filaments) {
+    const colors = [];
+    if (!filaments) return colors;
+    if (typeof filaments === 'object' && !Array.isArray(filaments)) {
+        Object.values(filaments).forEach(val => {
+            if (Array.isArray(val)) {
+                val.forEach(c => colors.push(c));
+            } else if (typeof val === 'string') {
+                colors.push(val);
+            }
+        });
+    } else if (Array.isArray(filaments)) {
+        filaments.forEach(entry => {
+            if (typeof entry === 'string') {
+                const parts = entry.split(/[:|-]/);
+                if (parts[1]) colors.push(parts[1]);
+            } else if (entry && typeof entry === 'object') {
+                if (entry.color) colors.push(entry.color);
+            }
+        });
+    }
+    return colors;
+}
+
+function getFilamentPairs(filaments){
+    const pairs = [];
+    if (!filaments) return pairs;
+    if (typeof filaments === 'object' && !Array.isArray(filaments)) {
+        Object.entries(filaments).forEach(([material, value]) => {
+            if (Array.isArray(value)) {
+                value.forEach(color => pairs.push({material, color}));
+            } else if (typeof value === 'string') {
+                pairs.push({material, color: value});
+            }
+        });
+    } else if (Array.isArray(filaments)) {
+        filaments.forEach(entry => {
+            if (typeof entry === 'string') {
+                const [material, color] = entry.split(/[:|-]/);
+                pairs.push({material, color});
+            } else if (entry && typeof entry === 'object') {
+                pairs.push({material: entry.material, color: entry.color});
+            }
+        });
+    }
+    return pairs;
+}
+
+function colorToHex(name){
+    const map = {
+        Black: '#000000', White: '#ffffff', Red: '#dc2626', Orange: '#f97316', Blue: '#2563eb', Green: '#16a34a', Yellow: '#facc15', Purple: '#7e22ce', Gray: '#6b7280', Clear: 'linear-gradient(45deg,#ffffff,#d1d5db)'
+    };
+    return map[name] || 'linear-gradient(45deg,#374151,#1f2937)';
+}
+
+function updateColorPreview(){
+    const preview = document.getElementById('colorPreview');
+    const sel = document.getElementById('colorFilter');
+    if (!preview || !sel) return;
+    const value = sel.value;
+    if (!value){
+        preview.style.background = 'linear-gradient(45deg,#374151,#1f2937)';
+        preview.style.borderColor = 'rgba(255,255,255,0.25)';
+    } else if (value === 'Other') {
+        // Pattern for other colors
+        preview.style.background = 'repeating-linear-gradient(45deg,#4b5563 0 6px,#9ca3af 6px 12px)';
+        preview.style.borderColor = 'rgba(255,255,255,0.4)';
+    } else {
+        const hex = colorToHex(value);
+        preview.style.background = hex;
+        preview.style.borderColor = 'rgba(255,255,255,0.35)';
+    }
+}
+
+function updateOtherInputs(){
+    const otherMatDiv = document.getElementById('otherMaterialSpec');
+    const otherColDiv = document.getElementById('otherColorSpec');
+    const colorSel = document.getElementById('colorFilter');
+    const otherMatActive = activeFilters.materials.includes('OTHER');
+    if (otherMatDiv) otherMatDiv.style.display = otherMatActive ? 'flex' : 'none';
+    if (otherColDiv && colorSel) otherColDiv.style.display = (colorSel.value === 'Other') ? 'flex' : 'none';
+}
+
+// Initialize visibility once DOM ready (simple defer assumption)
+setTimeout(updateOtherInputs, 0);
 
 function hideLabel(force=false){
     if (!hoverLabel) return;
@@ -121,9 +392,13 @@ function drawLabel(metadata, e){
             : '<div class="printVolume">Max Volume: N/A</div>';
         const filamentHtml = renderFilaments(filaments);
         let distanceHtml = '';
+        let farWarnHtml = '';
         if (userPosition && Number.isFinite(userPosition.lat) && Number.isFinite(userPosition.lng)) {
             const km = calcDistance(userPosition.lat, userPosition.lng, e.latlng.lat, e.latlng.lng);
             distanceHtml = `<div class="pinCard-meta">Distance: ${km.toFixed(1)} km</div>`;
+            if (filtersAreActive() && km > FAR_DISTANCE_KM) {
+                farWarnHtml = `<div class="farWarning">Very Far – consider reducing filters</div>`;
+            }
         }
         hoverLabel.innerHTML = `
             <div class="pinCard">
@@ -141,6 +416,7 @@ function drawLabel(metadata, e){
                     ${volumeHtml}
                     <div class="pinCard-meta" style="margin-top:4px;">Filaments:</div>
                     ${filamentHtml}
+                    ${farWarnHtml}
                 </div>
                 <div class="pinCard-actions">
                     <button class="btn" type="button" id="msgSlackBtn"><i class="fa-brands fa-slack"></i>  Message on Slack</button>
@@ -256,9 +532,11 @@ function findNearestPrinter(userLat, userLng){
     if (!printerData.length) return null;
     let best = null;
     let bestDist = Infinity;
+    const active = filtersAreActive();
     for (const p of printerData) {
         if (typeof p.lat !== 'number' || typeof p.lng !== 'number') continue;
-        const d = calcDistance(userLat, userLng, p.lat, p.lng); // km
+        if (active && !printerMatchesActiveFilters(p)) continue;
+        const d = calcDistance(userLat, userLng, p.lat, p.lng);
         if (d < bestDist) {
             bestDist = d;
             best = { printer: p, distanceKm: d };
@@ -285,12 +563,23 @@ function success(position) {
     drawUser(lat, lng)
     const nearest = findNearestPrinter(lat, lng);
     if (nearest) {
-        x.innerHTML = `✅ Nearest printer: ${nearest.printer.name} (${nearest.printer.printerModel}) – ${nearest.distanceKm.toFixed(1)} km away`;
+        if (filtersAreActive() && nearest.distanceKm > FAR_DISTANCE_KM) {
+            x.innerHTML = `⚠️ Nearest matching printer is far (${nearest.distanceKm.toFixed(1)} km: ${nearest.printer.name}). Consider reducing filters to increase yield.`;
+        } else {
+            x.innerHTML = `✅ Nearest printer: ${nearest.printer.name} (${nearest.printer.printerModel}) – ${nearest.distanceKm.toFixed(1)} km away`;
+        }
         // Find its marker and highlight
         const marker = printerMarkers.find(m => m.metadata === nearest.printer);
         highlightMarker(marker);
+        hideNoResultsPopup();
     } else {
-        x.innerHTML = "No printers loaded yet.";
+        if (filtersAreActive()) {
+            x.innerHTML = '❌ No matching printers found.';
+            showNoResultsPopup('No printers match your current filters. Try reducing filters to increase results.');
+        } else {
+            x.innerHTML = 'No printers loaded yet.';
+            hideNoResultsPopup();
+        }
     }
 
 }
