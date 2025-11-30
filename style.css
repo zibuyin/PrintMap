@@ -1,0 +1,143 @@
+/* Layout */
+#map {
+    /* vertical-align: middle; */
+    margin-left: 15vw;
+    /* margin-top: 10vh; */
+    height: 70vh;
+    width: 70vw;
+    border: 5px solid var(--secondary);
+    border-radius: 20px;
+    position: relative;
+}
+
+/* Headings */
+.pltitle {
+    /* margin-top: 20px; */
+    color: var(--primary);
+    padding: 10px;
+}
+
+.plsubtitle {
+    /* margin: 10px; */
+    color: var(--secondary);
+    padding-bottom: 10px;
+}
+
+/* Hover label container (positioned via JS) */
+.pinLabel {
+    position: absolute;
+    pointer-events: auto;
+    padding: 8px 10px;
+    z-index: 10000;
+    display: none;
+}
+
+/* Card template inside pinLabel */
+.pinCard {
+    background: #111827;
+    color: #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    min-width: 240px;
+    max-width: 280px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    font-size: 13px;
+}
+
+.pinCard-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px 6px;
+}
+
+.pinCard-header .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: #1f2937;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+}
+
+.pinCard-body {
+    padding: 0 12px 8px;
+}
+
+.pinCard-meta {
+    color: #9ca3af;
+}
+
+.pinCard-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px 12px;
+}
+
+.btn {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #1f2937;
+    color: #e5e7eb;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.btn:hover {
+    filter: brightness(1.2);
+}
+
+.locationInput {
+    border: 2px solid var(--primary);
+    width: 30vw;
+}
+
+.nearestPrinterBtn {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 15px;
+}
+
+.locationWarning {
+    text-align: center;
+}
+
+/* Filament list styling */
+.filamentList {
+    list-style: none;
+    padding: 4px 0 0;
+    margin: 6px 0 0;
+}
+
+.filamentItem {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    margin: 2px 0;
+}
+
+.filamentItem span.materialName {
+    font-weight: 500;
+}
+
+.chip {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    margin-right: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.printVolume {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #d1d5db;
+}

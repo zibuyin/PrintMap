@@ -1,0 +1,29 @@
+<!-- Using leaflet Map -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://kit.fontawesome.com/11fde4d098.js" crossorigin="anonymous"></script>
+    <title>Printing Legion Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="hackclubCSS.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+
+    <h2 style="text-align: center;" class="title pltitle">Printing Legion Map</h2>
+    <h3 style="text-align: center;" class="heading plsubtitle">Each benchy is someone with a printer!</h3>
+    <div class="mapRow">
+        <div id="map"></div>
+    </div>
+    <!-- <input placeholder="Input Your Location To Find Nearest Printer" class="locationInput" /> -->
+    <button class="cta nearestPrinterBtn" onclick="getLocation()">Find Nearest Printer</button>
+    <p class="caption locationWarning">🧭 This will require location services!</p>
+    <script src="script.js"></script>
+
+</html>
