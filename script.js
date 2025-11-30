@@ -8,8 +8,8 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 // Custom Benchy icon
 const benchyIcon = L.icon({
-    iconUrl: "assets/benchy.png",
-    iconSize: [40, 33.5],
+    iconUrl: "assets/benchyRedv2.png",
+    iconSize: [34.42, 32],
     iconAnchor: [20, 33.5], // bottom center of icon
     popupAnchor: [0, -30], // slightly above the icon
 });
