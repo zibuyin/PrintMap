@@ -1,6 +1,6 @@
 
-alert("BETA Build 3A - Locations are only accurate to country level, markers are jittered for visibility.");
-console.log("Build 3A BETA TEST DEMO")
+alert("BETA Build 3.1A - Locations are only accurate to country level, markers are jittered for visibility.");
+console.log("Build 3.1A BETA TEST DEMO")
 // Initialize map
 const map = L.map("map").setView([31, 0], 2);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -71,6 +71,14 @@ function filtersAreActive(){
 }
 
 function printerMatchesActiveFilters(printer){
+    // If no filters active, show all printers
+    if (!filtersAreActive()) return true;
+    
+    // If printer has no filament data, exclude it when material/color filters are active
+    if ((activeFilters.materials.length > 0 || activeFilters.color) && !printer.filaments) {
+        return false;
+    }
+    
     const knownMaterials = ['PLA','ABS','PETG','TPU'];
     const requiredMaterials = activeFilters.materials.filter(m => m !== 'OTHER');
     const hasOtherMaterialFilter = activeFilters.materials.includes('OTHER');
@@ -371,7 +379,7 @@ function renderFilaments(filaments){
 
 function drawLabel(metadata, e){
     ensureHoverLabel();
-    const { name = "Unknown", contact = "N/A", printerModel = "N/A", city ="N/A", gramsPrinted = 0, printSize, printVolume, filaments } = metadata || {};
+    const { name = "Unknown", contact = "N/A", printerModel, city, country, gramsPrinted = 0, printSize, printVolume, filaments } = metadata || {};
     // const msg = `${name} | ${contact} | ${printerModel} | Printed: ${timesPrinted}`;
     // console.log(msg);
 
@@ -390,8 +398,21 @@ function drawLabel(metadata, e){
         const volume = (printSize || printVolume);
         const volumeHtml = volume && Array.isArray(volume) && volume.length === 3
             ? `<div class="printVolume">Max Volume: ${volume[0]}×${volume[1]}×${volume[2]} mm</div>`
-            : '<div class="printVolume">Max Volume: N/A</div>';
-        const filamentHtml = renderFilaments(filaments);
+            : '<div class="printVolume">Max Volume: No volume data</div>';
+        const printerModelHtml = (printerModel && printerModel.trim()) ? `<div class="pinCard-meta">${printerModel}</div>` : '<div class="pinCard-meta">No printer model data</div>';
+        const hasBio = metadata?.bio && metadata.bio.trim();
+        const bioSectionHtml = hasBio ? `
+            <div class="bioSection">
+                <button class="bioToggle" type="button" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('open');">
+                    <i class="fa-solid fa-chevron-right"></i> Bio
+                </button>
+                <div class="bioContent">${metadata.bio}</div>
+            </div>` : '';
+        const cityDisplay = (city && city.trim()) ? city : 'Unknown city';
+        const countryDisplay = (country && country.trim()) ? country : 'Unknown';
+        const cityHtml = `<div class="pinCard-meta">Location: ${cityDisplay}, ${countryDisplay}</div>`;
+        const filamentHtml = filaments ? renderFilaments(filaments) : '<div class="pinCard-meta">No filament data</div>';
+        const gramsHtml = `<div class="pinCard-meta">Grams Printed: ${gramsPrinted || 0}g</div>`;
         let distanceHtml = '';
         let farWarnHtml = '';
         if (userPosition && Number.isFinite(userPosition.lat) && Number.isFinite(userPosition.lng)) {
@@ -407,18 +428,18 @@ function drawLabel(metadata, e){
                     <div class="avatar" style="background-image: url('${metadata?.profilePic || ''}'); background-size: cover; background-position: center;">${metadata?.profilePic ? '' : '🏷️'}</div>
                     <div>
                         <div><strong>${name}</strong></div>
-                        <div class="pinCard-meta">${printerModel}</div>
+                        ${printerModelHtml}
                     </div>
                 </div>
                 <div class="pinCard-body">
-                    <div>Total Printed: ${gramsPrinted}g</div>
-                    <div class="pinCard-meta">Location: ${city}</div>
+                    ${cityHtml}
                     ${distanceHtml}
+                    ${gramsHtml}
                     ${volumeHtml}
-                    <div class="pinCard-meta" style="margin-top:4px;">Filaments:</div>
                     ${filamentHtml}
                     ${farWarnHtml}
                 </div>
+                ${bioSectionHtml}
                 <div class="pinCard-actions">
                     <button class="btn" type="button" id="msgSlackBtn"><i class="fa-brands fa-slack"></i>  Message on Slack</button>
                     <button class="btn" type="button" id="viewProfileBtn"><i class="fa-solid fa-globe"></i>  Website</button>
@@ -470,12 +491,17 @@ function drawMarker(lat, lng, metadata){
     // Attach metadata directly to marker instance
     marker.metadata = metadata;
     printerMarkers.push(marker);
+    let labelShown = false;
     // Use normal function to preserve 'this' = marker in handler
     marker.on('mouseover', function(e){
-        drawLabel(this.metadata, e);
+        if (!labelShown) {
+            drawLabel(this.metadata, e);
+            labelShown = true;
+        }
     });
     marker.on('mouseout', function(){
         ensureHoverLabel();
+        labelShown = false;
         if (this === pinnedMarker) return; // do not hide pinned label
         if (hideTimer) { clearTimeout(hideTimer); }
         hideTimer = setTimeout(() => {
@@ -609,23 +635,24 @@ function loadPrinters(){
         .then(r => r.json())
         .then(data => {
             printerData = data.map((p, idx) => {
-                const coords = countryCoords[p.country] || {lat: 0, lng: 0};
+                // Use city if provided, fallback to country
+                const locationField = (p.city && p.city.trim()) ? p.city : p.country;
+                const coords = countryCoords[locationField] || countryCoords[p.country] || {lat: 0, lng: 0};
                 // Add small random offset to spread markers in same country
                 const latOffset = (Math.random() - 0.3) * 8;
                 const lngOffset = (Math.random() - 0.3) * 8;
                 
-                const bioInfo = parseBio(p.bio);
-                
                 return {
                     name: p.nickname || 'Anonymous',
                     slackId: p.slack_id,
-                    printerModel: bioInfo.printerModel,
-                    city: p.country,
+                    printerModel: (p.printerModel && p.printerModel.trim()) ? p.printerModel : null,
+                    city: (p.city && p.city.trim()) ? p.city : null,
+                    country: p.country || null,
                     website: p.website || 'hackclub.com',
                     profilePic: p.profile_pic,
                     bio: p.bio,
-                    printSize: [220, 220, 250], // default size
-                    filaments: bioInfo.filaments,
+                    printSize: null,
+                    filaments: (p.filaments && (Array.isArray(p.filaments) ? p.filaments.length > 0 : Object.keys(p.filaments).length > 0)) ? p.filaments : null,
                     lat: coords.lat + latOffset,
                     lng: coords.lng + lngOffset,
                     // gramsPrinted: Math.floor(Math.random() * 5000) + 500 // Random 500-5500g
