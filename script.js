@@ -1,5 +1,6 @@
 
-console.log("Build 2A BETA TEST DEMO")
+alert("BETA Build 3A - Locations are only accurate to country level, markers are jittered for visibility.");
+console.log("Build 3A BETA TEST DEMO")
 // Initialize map
 const map = L.map("map").setView([31, 0], 2);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -370,7 +371,7 @@ function renderFilaments(filaments){
 
 function drawLabel(metadata, e){
     ensureHoverLabel();
-    const { name = "Unknown", contact = "N/A", printerModel = "N/A", city ="N/A", timesPrinted = 0, printSize, printVolume, filaments } = metadata || {};
+    const { name = "Unknown", contact = "N/A", printerModel = "N/A", city ="N/A", gramsPrinted = 0, printSize, printVolume, filaments } = metadata || {};
     // const msg = `${name} | ${contact} | ${printerModel} | Printed: ${timesPrinted}`;
     // console.log(msg);
 
@@ -397,20 +398,20 @@ function drawLabel(metadata, e){
             const km = calcDistance(userPosition.lat, userPosition.lng, e.latlng.lat, e.latlng.lng);
             distanceHtml = `<div class="pinCard-meta">Distance: ${km.toFixed(1)} km</div>`;
             if (filtersAreActive() && km > FAR_DISTANCE_KM) {
-                farWarnHtml = `<div class="farWarning">Very Far – consider reducing filters</div>`;
+                farWarnHtml = `<div class="farWarning">Far match – consider reducing filters</div>`;
             }
         }
         hoverLabel.innerHTML = `
             <div class="pinCard">
                 <div class="pinCard-header">
-                    <div class="avatar">🏷️</div>
+                    <div class="avatar" style="background-image: url('${metadata?.profilePic || ''}'); background-size: cover; background-position: center;">${metadata?.profilePic ? '' : '🏷️'}</div>
                     <div>
                         <div><strong>${name}</strong></div>
                         <div class="pinCard-meta">${printerModel}</div>
                     </div>
                 </div>
                 <div class="pinCard-body">
-                    <div>Times Printed: ${timesPrinted}</div>
+                    <div>Total Printed: ${gramsPrinted}g</div>
                     <div class="pinCard-meta">Location: ${city}</div>
                     ${distanceHtml}
                     ${volumeHtml}
@@ -488,17 +489,165 @@ function drawMarker(lat, lng, metadata){
 
 
 
-// Load external printer test data
+// Simple country/region to lat/lng mapping for initial positioning
+const countryCoords = {
+    'United Kingdom': {lat: 51.5074, lng: -0.1278},
+    'Canada': {lat: 56.1304, lng: -106.3468},
+    'United States': {lat: 37.0902, lng: -95.7129},
+    'Austria': {lat: 47.5162, lng: 14.5501},
+    'Germany': {lat: 51.1657, lng: 10.4515},
+    'Australia': {lat: -25.2744, lng: 133.7751},
+    'Netherlands': {lat: 52.1326, lng: 5.2913},
+    'India': {lat: 20.5937, lng: 78.9629},
+    'Brazil': {lat: -14.2350, lng: -51.9253},
+    'France': {lat: 46.2276, lng: 2.2137},
+    'Spain': {lat: 40.4637, lng: -3.7492},
+    'Italy': {lat: 41.8719, lng: 12.5674},
+    'Japan': {lat: 36.2048, lng: 138.2529},
+    'China': {lat: 35.8617, lng: 104.1954},
+    'South Korea': {lat: 35.9078, lng: 127.7669},
+    'Mexico': {lat: 23.6345, lng: -102.5528},
+    'Argentina': {lat: -38.4161, lng: -63.6167},
+    'Chile': {lat: -35.6751, lng: -71.5430},
+    'Colombia': {lat: 4.5709, lng: -74.2973},
+    'Peru': {lat: -9.1900, lng: -75.0152},
+    'Singapore': {lat: 1.3521, lng: 103.8198},
+    'New Zealand': {lat: -40.9006, lng: 174.8860},
+    'South Africa': {lat: -30.5595, lng: 22.9375},
+    'Egypt': {lat: 26.8206, lng: 30.8025},
+    'Nigeria': {lat: 9.0820, lng: 8.6753},
+    'Russia': {lat: 61.5240, lng: 105.3188},
+    'Poland': {lat: 51.9194, lng: 19.1451},
+    'Sweden': {lat: 60.1282, lng: 18.6435},
+    'Norway': {lat: 60.4720, lng: 8.4689},
+    'Denmark': {lat: 56.2639, lng: 9.5018},
+    'Finland': {lat: 61.9241, lng: 25.7482},
+    'Belgium': {lat: 50.5039, lng: 4.4699},
+    'Switzerland': {lat: 46.8182, lng: 8.2275},
+    'Portugal': {lat: 39.3999, lng: -8.2245},
+    'Greece': {lat: 39.0742, lng: 21.8243},
+    'Turkey': {lat: 38.9637, lng: 35.2433},
+    'UAE': {lat: 23.4241, lng: 53.8478},
+    'Saudi Arabia': {lat: 23.8859, lng: 45.0792},
+    'Israel': {lat: 31.0461, lng: 34.8516},
+    'Thailand': {lat: 15.8700, lng: 100.9925},
+    'Vietnam': {lat: 14.0583, lng: 108.2772},
+    'Philippines': {lat: 12.8797, lng: 121.7740},
+    'Indonesia': {lat: -0.7893, lng: 113.9213},
+    'Malaysia': {lat: 4.2105, lng: 101.9758},
+    'Pakistan': {lat: 30.3753, lng: 69.3451},
+    'Bangladesh': {lat: 23.6850, lng: 90.3563},
+    'Ireland': {lat: 53.4129, lng: -8.2439},
+    'Czech Republic': {lat: 49.8175, lng: 15.4730},
+    'Hungary': {lat: 47.1625, lng: 19.5033},
+    'Romania': {lat: 45.9432, lng: 24.9668},
+    'Ukraine': {lat: 48.3794, lng: 31.1656},
+    'Scotland': {lat: 56.4907, lng: -4.2026},
+    'Wales': {lat: 52.1307, lng: -3.7837},
+    'England': {lat: 52.3555, lng: -1.1743}
+};
+
+// Parse bio text to extract printer info
+function parseBio(bio) {
+    if (!bio) return {};
+    const bioLower = bio.toLowerCase();
+    const lines = bio.split('\\n');
+    
+    // Extract materials and colors from bio
+    const materials = [];
+    const filaments = {};
+    
+    if (bioLower.includes('pla')) materials.push('PLA');
+    if (bioLower.includes('abs')) materials.push('ABS');
+    if (bioLower.includes('petg')) materials.push('PETG');
+    if (bioLower.includes('tpu')) materials.push('TPU');
+    if (bioLower.includes('nylon')) materials.push('Nylon');
+    if (bioLower.includes('asa')) materials.push('ASA');
+    if (bioLower.includes('resin')) materials.push('Resin');
+    
+    // Extract colors
+    const colors = [];
+    const colorMap = {
+        'black': 'Black', 'white': 'White', 'red': 'Red', 'blue': 'Blue',
+        'green': 'Green', 'yellow': 'Yellow', 'orange': 'Orange', 'purple': 'Purple',
+        'gray': 'Gray', 'grey': 'Gray', 'pink': 'Pink', 'clear': 'Clear',
+        'transparent': 'Clear', 'translucent': 'Clear'
+    };
+    
+    for (const [key, value] of Object.entries(colorMap)) {
+        if (bioLower.includes(key)) {
+            if (!colors.includes(value)) colors.push(value);
+        }
+    }
+    
+    // Build filaments object
+    if (materials.length > 0) {
+        materials.forEach(mat => {
+            if (colors.length > 0) {
+                filaments[mat] = colors;
+            } else {
+                filaments[mat] = ['Black']; // default
+            }
+        });
+    }
+    
+    // Extract printer model from first line
+    let printerModel = 'Unknown';
+    if (lines[0] && lines[0].length < 80) {
+        printerModel = lines[0].trim();
+    }
+    
+    return { printerModel, filaments, materials, colors };
+}
+
+// Load printer data from API
 function loadPrinters(){
-    return fetch('printers.json')
+    // Use CORS proxy to avoid CORS issues
+    const apiUrl = 'https://printlegion.hackclub.com/api/printers';
+    const corsProxy = 'https://corsproxy.io/?';
+    return fetch(corsProxy + encodeURIComponent(apiUrl))
         .then(r => r.json())
         .then(data => {
-            printerData = data;
-            data.forEach(p => {
+            printerData = data.map((p, idx) => {
+                const coords = countryCoords[p.country] || {lat: 0, lng: 0};
+                // Add small random offset to spread markers in same country
+                const latOffset = (Math.random() - 0.3) * 8;
+                const lngOffset = (Math.random() - 0.3) * 8;
+                
+                const bioInfo = parseBio(p.bio);
+                
+                return {
+                    name: p.nickname || 'Anonymous',
+                    slackId: p.slack_id,
+                    printerModel: bioInfo.printerModel,
+                    city: p.country,
+                    website: p.website || 'hackclub.com',
+                    profilePic: p.profile_pic,
+                    bio: p.bio,
+                    printSize: [220, 220, 250], // default size
+                    filaments: bioInfo.filaments,
+                    lat: coords.lat + latOffset,
+                    lng: coords.lng + lngOffset,
+                    // gramsPrinted: Math.floor(Math.random() * 5000) + 500 // Random 500-5500g
+                    gramsPrinted: 0,
+                };
+            });
+            
+            countPrinters();
+            printerData.forEach(p => {
                 drawMarker(p.lat, p.lng, p);
             });
         })
-        .catch(err => console.error('Failed to load printers.json', err));
+        .catch(err => console.error('Failed to load printer data from API', err));
+}
+
+function countPrinters(){
+    const countEl = document.getElementsByClassName('plsubtitle')[0];
+    if (countEl) {
+        // Preserve the icon and update only the count
+        const iconHtml = '<i class="fa-solid fa-circle online-indicator"></i> ';
+        countEl.innerHTML = `${iconHtml}Currently listing ${printerData.length.toLocaleString()} printers worldwide!`;
+    }
 }
 loadPrinters();
 
